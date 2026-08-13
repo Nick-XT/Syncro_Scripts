@@ -5,6 +5,7 @@ function SideloadDrivers-WindowsInstall {
         [switch]$Recurse
     )
         
+    #Default names for .wim files in Windows installation media. Add others here if needed.
     @("boot", "install") | ForEach-Object {
         $WimPath = Join-Path -Path $MountPath -ChildPath "sources\$_.wim"
         if (-not (Test-Path -Path $WimPath)) {
@@ -25,28 +26,29 @@ function SideloadDrivers-WindowsInstall {
             }
             try {
                 $WimData | ForEach-Object {
-                    Write-Host "Processing $ImageType.wim - Index $($_.Index) | $($_.Name)..."
-                    $MountPath = "C:\WimTemp\$ImageType$($_.Index)"
-                    New-Item -Path $MountPath -ItemType Directory -Force | Out-Null
+                    Write-Host "Processing $ImageType.wim - Index $($_.Index) of $($WimData.Count) | $($_.Name)..."
+                    $WimMountPath = "C:\WimTemp\$ImageType$($_.Index)"
+                    New-Item -Path $WimMountPath -ItemType Directory -Force | Out-Null
 
-                    DISM.exe /Mount-Image /ImageFile:$WimPath /Index:$($_.Index) /MountDir:$MountPath
+                    DISM.exe /Mount-Image /ImageFile:$WimPath /Index:$($_.Index) /MountDir:$WimMountPath
                     if ($LASTEXITCODE -ne 0) {
-                        throw "Error mounting $ImageType.wim index $($_.Index): $LASTEXITCODE. Exiting."
+                        throw "Error mounting $ImageType.wim index $($_.Index) of $($WimData.Count): $LASTEXITCODE. Exiting."
                     }
                     if ($Recurse) {
-                        DISM.exe /Image:$MountPath /Add-Driver /Driver:$DriverPath /Recurse
+                        DISM.exe /Image:$WimMountPath /Add-Driver /Driver:$DriverPath /Recurse
                     } else {
-                        DISM.exe /Image:$MountPath /Add-Driver /Driver:$DriverPath
+                        DISM.exe /Image:$WimMountPath /Add-Driver /Driver:$DriverPath
                     }
                     if ($LASTEXITCODE -ne 0) {
-                        throw "Error adding drivers to $ImageType.wim index $($_.Index): $LASTEXITCODE. Exiting."
+                        throw "Error adding drivers to $ImageType.wim index $($_.Index) of $($WimData.Count): $LASTEXITCODE. Exiting."
                     }
-                    DISM.exe /Unmount-Image /MountDir:$MountPath /Commit
+                    DISM.exe /Unmount-Image /MountDir:$WimMountPath /Commit
                     if ($LASTEXITCODE -ne 0) {
-                        throw "Error unmounting $ImageType.wim index $($_.Index): $LASTEXITCODE. Exiting."
+                        throw "Error unmounting $ImageType.wim index $($_.Index) of $($WimData.Count): $LASTEXITCODE. Exiting."
                     }
-                    Write-Host "Drivers have been successfully sideloaded into the Windows ISO."
+
                 }
+                Write-Host "Drivers have been successfully sideloaded into the Windows ISO."
             } catch {
                 Write-Error "An error occurred while sideloading drivers into $ImageType.wim: $_"
                 Write-Host "Cleaning up mounted images..."
