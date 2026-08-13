@@ -4,6 +4,7 @@ function SideloadDrivers-WindowsInstall {
         [string]$DriverPath = "C:\DRIVERS",
         [switch]$Recurse
     )
+    $WimTempPath = "C:\WimTemp"
         
     #Default names for .wim files in Windows installation media. Add others here if needed.
     @("boot", "install") | ForEach-Object {
@@ -27,7 +28,7 @@ function SideloadDrivers-WindowsInstall {
             try {
                 $WimData | ForEach-Object {
                     Write-Host "Processing $ImageType.wim - Index $($_.Index) of $($WimData.Count) | $($_.Name)..."
-                    $WimMountPath = "C:\WimTemp\$ImageType$($_.Index)"
+                    $WimMountPath = Join-Path -Path $WimTempPath -ChildPath "$ImageType$($_.Index)"
                     New-Item -Path $WimMountPath -ItemType Directory -Force | Out-Null
 
                     DISM.exe /Mount-Image /ImageFile:$WimPath /Index:$($_.Index) /MountDir:$WimMountPath
@@ -58,5 +59,7 @@ function SideloadDrivers-WindowsInstall {
     }
     
     DISM.exe /Cleanup-Wim
-    Remove-Item -Path $MountPath -Recurse -Force
+    if (Test-Path -Path $WimTempPath) {
+        Remove-Item -Path $WimTempPath -Recurse -Force
+    }
 }
